@@ -106,10 +106,11 @@ Im Ordner [`3D-Print/`](./3D-Print) findest du druckfertige STL-Dateien sowie Vo
 
 ## Erstbenutzung & Kalibrierung
 
-1. **Erstverbindung:** Nach dem ersten Flashen startet der ESP im AP-Modus. Verbinde dich mit dem WLAN `WoWa-Level-AP` (Passwort: `12345678`) und öffne `http://192.168.4.1`.
+1. **Erstverbindung:** Nach dem ersten Flashen startet der ESP im AP-Modus. Verbinde dich mit dem WLAN `WoWa-Level` (Passwort: `levelsensor`) und öffne `http://192.168.4.1`.
 2. **Einbau & Tare:** Richte das Fahrzeug grob aus und drücke in der Web-UI unter **🎯 Kalibr.** den Button **Tare Setzen**.
 3. **Feinjustierung:** Überprüfe das Ergebnis mit einer analogen Referenz-Wasserwaage (z. B. auf der Küchenzeile). Gleiche verbleibende Abweichungen komfortabel über die Schieberegler **Pitch Korrektur** und **Roll Korrektur** in der Web-UI oder direkt in Home Assistant ab.
 4. **Speichern:** Klicke auf **Feinjustierung Speichern**, um die Offsets dauerhaft im Flash abzulegen.
+
 
 ## Projektstruktur
 
