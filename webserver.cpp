@@ -161,6 +161,19 @@ static void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
             } else if (msg == "CAL_RESET") {
                 sensorResetCalibration();
             }
+            // TARE_SET_VALUES:{"pitch":1.23,"roll":-0.45}
+            else if (msg.startsWith("TARE_SET_VALUES:")) {
+                String jsonStr = msg.substring(16);
+                JsonDocument adjDoc;
+                DeserializationError adjErr = deserializeJson(adjDoc, jsonStr);
+                if (!adjErr) {
+                    config.tare_pitch = adjDoc["pitch"] | 0.0f;
+                    config.tare_roll  = adjDoc["roll"] | 0.0f;
+                    config.tare_active = true;
+                    saveConfig();
+                    Serial.printf("[WS] Tare values set: P=%.2f R=%.2f\n", config.tare_pitch, config.tare_roll);
+                }
+            }
         }
     }
 }
@@ -329,8 +342,8 @@ void loadConfig() {
     strlcpy(config.mqtt_prefix, doc["mqtt_prefix"] | DEFAULT_MQTT_PREFIX, sizeof(config.mqtt_prefix));
     config.mount = (MountOrientation)(doc["mount"].as<int>());
     config.track_width = doc["track_width"];
-        if(doc.containsKey("vehicle_type")) config.vehicle_type = (VehicleType)(int)doc["vehicle_type"];
-        if(doc.containsKey("axle_to_jockey")) config.axle_to_jockey = doc["axle_to_jockey"] | DEFAULT_TRACK_WIDTH;
+    if(doc.containsKey("vehicle_type")) config.vehicle_type = (VehicleType)(int)doc["vehicle_type"];
+    if(doc.containsKey("axle_to_jockey")) config.axle_to_jockey = doc["axle_to_jockey"] | DEFAULT_AXLE_JOCKEY;
     config.wheelbase = doc["wheelbase"] | DEFAULT_WHEELBASE;
     config.tolerance = doc["tolerance"] | DEFAULT_TOLERANCE;
     config.tare_pitch = doc["tare_pitch"] | 0.0f;

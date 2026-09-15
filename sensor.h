@@ -7,6 +7,7 @@
 bool sensorInit();
 void sensorLoop();
 void sensorSetTare();
+void sensorAdjustTare(float deltaPitch, float deltaRoll);
 void sensorResetTare();
 void sensorResetCalibration();
 float getPitchDeg();

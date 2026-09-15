@@ -243,6 +243,70 @@ static void mqttCallback(char* topic, byte* payload, unsigned int length) {
         String prefix = String(config.mqtt_prefix);
         mqtt.publish((prefix + "/mqtt_fast").c_str(), config.mqtt_fast ? "ON" : "OFF", true);
         Serial.printf("[MQTT] Speed: %s\n", config.mqtt_fast ? "5 Hz" : "0.5 Hz");
+    } else if (topicStr == cmdPrefix + "track_width/set") {
+        // Spurweite aendern
+        float val = payloadStr.toFloat();
+        if (val >= 100.0f && val <= 300.0f) {
+            config.track_width = val;
+            saveConfig();
+            char buf[8];
+            dtostrf(config.track_width, 1, 0, buf);
+            String prefix = String(config.mqtt_prefix);
+            mqtt.publish((prefix + "/track_width").c_str(), buf, true);
+            Serial.printf("[MQTT] Track width set to: %.0f cm\n", config.track_width);
+        }
+    } else if (topicStr == cmdPrefix + "wheelbase/set") {
+        // Radstand aendern
+        float val = payloadStr.toFloat();
+        if (val >= 200.0f && val <= 800.0f) {
+            config.wheelbase = val;
+            saveConfig();
+            char buf[8];
+            dtostrf(config.wheelbase, 1, 0, buf);
+            String prefix = String(config.mqtt_prefix);
+            mqtt.publish((prefix + "/wheelbase").c_str(), buf, true);
+            Serial.printf("[MQTT] Wheelbase set to: %.0f cm\n", config.wheelbase);
+        }
+    } else if (topicStr == cmdPrefix + "axle_to_jockey/set") {
+        // Achse zu Stuetzrad aendern
+        float val = payloadStr.toFloat();
+        if (val >= 100.0f && val <= 600.0f) {
+            config.axle_to_jockey = val;
+            saveConfig();
+            char buf[8];
+            dtostrf(config.axle_to_jockey, 1, 0, buf);
+            String prefix = String(config.mqtt_prefix);
+            mqtt.publish((prefix + "/axle_to_jockey").c_str(), buf, true);
+            Serial.printf("[MQTT] Axle to jockey set to: %.0f cm\n", config.axle_to_jockey);
+        }
+    } else if (topicStr == cmdPrefix + "tare_pitch/set") {
+        // Tare Pitch direkt setzen
+        float val = payloadStr.toFloat();
+        if (val >= -10.0f && val <= 10.0f) {
+            config.tare_pitch = val;
+            config.tare_active = true;
+            saveConfig();
+            String prefix = String(config.mqtt_prefix);
+            char buf[8];
+            dtostrf(val, 1, 2, buf);
+            mqtt.publish((prefix + "/tare_pitch").c_str(), buf, true);
+            mqtt.publish((prefix + "/tare_active").c_str(), "ON", true);
+            Serial.printf("[MQTT] Tare pitch set to: %.2f\n", val);
+        }
+    } else if (topicStr == cmdPrefix + "tare_roll/set") {
+        // Tare Roll direkt setzen
+        float val = payloadStr.toFloat();
+        if (val >= -10.0f && val <= 10.0f) {
+            config.tare_roll = val;
+            config.tare_active = true;
+            saveConfig();
+            String prefix = String(config.mqtt_prefix);
+            char buf[8];
+            dtostrf(val, 1, 2, buf);
+            mqtt.publish((prefix + "/tare_roll").c_str(), buf, true);
+            mqtt.publish((prefix + "/tare_active").c_str(), "ON", true);
+            Serial.printf("[MQTT] Tare roll set to: %.2f\n", val);
+        }
     }
 }
 
@@ -342,6 +406,23 @@ void mqttPublishState() {
     // MQTT speed
     mqtt.publish((prefix + "/mqtt_fast").c_str(), config.mqtt_fast ? "ON" : "OFF", true);
     
+    // Fahrzeugmasse (fuer HA Number Entities)
+    dtostrf(config.track_width, 1, 0, buf);
+    mqtt.publish((prefix + "/track_width").c_str(), buf, true);
+    
+    dtostrf(config.wheelbase, 1, 0, buf);
+    mqtt.publish((prefix + "/wheelbase").c_str(), buf, true);
+    
+    dtostrf(config.axle_to_jockey, 1, 0, buf);
+    mqtt.publish((prefix + "/axle_to_jockey").c_str(), buf, true);
+    
+    // Tare-Werte (fuer Anzeige in HA)
+    dtostrf(config.tare_pitch, 1, 2, buf);
+    mqtt.publish((prefix + "/tare_pitch").c_str(), buf, true);
+    
+    dtostrf(config.tare_roll, 1, 2, buf);
+    mqtt.publish((prefix + "/tare_roll").c_str(), buf, true);
+    
     mqtt.publish((prefix + "/status").c_str(), "online", true);
 }
 
@@ -383,6 +464,20 @@ void mqttPublishDiscovery() {
     // --- Number ---
     publishNumber("Toleranz Einstellung", "tolerance", "mdi:arrow-expand-horizontal",
         0.0f, 1.0f, 0.1f, "\u00b0");
+    
+    // --- Fahrzeugmasse (Number Entities fuer HA) ---
+    publishNumber("Spurweite", "track_width", "mdi:arrow-left-right",
+        100.0f, 300.0f, 1.0f, "cm");
+    publishNumber("Radstand", "wheelbase", "mdi:arrow-up-down",
+        200.0f, 800.0f, 1.0f, "cm");
+    publishNumber("Achse Stuetzrad", "axle_to_jockey", "mdi:arrow-up-down",
+        100.0f, 600.0f, 1.0f, "cm");
+
+    // --- Tare-Werte direkt editierbar ---
+    publishNumber("Tare Pitch", "tare_pitch", "mdi:target",
+        -10.0f, 10.0f, 0.05f, "\u00b0");
+    publishNumber("Tare Roll", "tare_roll", "mdi:target",
+        -10.0f, 10.0f, 0.05f, "\u00b0");
     
     // --- Filter Switch ---
     publishBinarySensor("Filter Aktiv", "filter_active", "mdi:blur");
@@ -511,6 +606,7 @@ static void publishNumber(const char* name, const char* id, const char* icon,
     doc["max"] = maxVal;
     doc["step"] = step;
     if (strlen(unit) > 0) doc["unit_of_measurement"] = unit;
+    doc["mode"] = "box";
     
     addDeviceBlock(doc);
     

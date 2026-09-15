@@ -599,6 +599,27 @@ body {
         </div>
 
         <div class="card">
+            <div class="card-title">Tare-Werte anpassen (Messger&auml;t-Abgleich)</div>
+            <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">
+                Aktuelle Tare-Offsets. Wert direkt &auml;ndern um den Sensor
+                an dein Messger&auml;t anzupassen. Wird dauerhaft gespeichert.
+            </p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Tare Pitch (&deg;)</label>
+                    <input type="number" id="tare-adj-pitch" step="0.05" value="0" min="-10" max="10">
+                </div>
+                <div class="form-group">
+                    <label>Tare Roll (&deg;)</label>
+                    <input type="number" id="tare-adj-roll" step="0.05" value="0" min="-10" max="10">
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" onclick="saveTareValues()">&#9998; Tare speichern</button>
+            </div>
+        </div>
+
+        <div class="card">
             <div class="card-title">Glättungsfilter (EMA)</div>
             <div class="info-row">
                 <span class="info-label">Filter aktiv</span>
@@ -770,6 +791,8 @@ async function loadSetup() {
         currentConfig = cfg;
         
         document.getElementById('cfg-mount').value = cfg.mount;
+        document.getElementById('cfg-vehicle').value = cfg.vehicle_type;
+        document.getElementById('cfg-axle-jockey').value = cfg.axle_to_jockey;
         document.getElementById('cfg-track').value = cfg.track_width;
         document.getElementById('cfg-wheelbase').value = cfg.wheelbase;
         document.getElementById('cfg-mqtt-server').value = cfg.mqtt_server;
@@ -784,6 +807,9 @@ async function loadSetup() {
         document.getElementById('cfg-ap-pass').value = cfg.ap_pass;
         document.getElementById('tare-pitch').textContent = cfg.tare_pitch.toFixed(2) + '°';
         document.getElementById('tare-roll').textContent = cfg.tare_roll.toFixed(2) + '°';
+        document.getElementById('tare-adj-pitch').value = cfg.tare_pitch.toFixed(2);
+        document.getElementById('tare-adj-roll').value = cfg.tare_roll.toFixed(2);
+        onVehicleTypeChange();
     } catch(e) {
         showToast('Fehler beim Laden der Konfiguration');
     }
@@ -792,6 +818,8 @@ async function loadSetup() {
 async function saveSetup() {
     const cfg = {
         mount: parseInt(document.getElementById('cfg-mount').value),
+        vehicle_type: parseInt(document.getElementById('cfg-vehicle').value),
+        axle_to_jockey: parseFloat(document.getElementById('cfg-axle-jockey').value),
         track_width: parseFloat(document.getElementById('cfg-track').value),
         wheelbase: parseFloat(document.getElementById('cfg-wheelbase').value),
         mqtt_server: document.getElementById('cfg-mqtt-server').value,
@@ -861,6 +889,26 @@ function toggleFilter() {
         .then(r => r.json())
         .then(d => showToast('Filter: ' + d.filter))
         .catch(e => showToast('Fehler'));
+}
+
+async function saveTareValues() {
+    var tp = parseFloat(document.getElementById('tare-adj-pitch').value) || 0;
+    var tr = parseFloat(document.getElementById('tare-adj-roll').value) || 0;
+    try {
+        var resp = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({tare_pitch: tp, tare_roll: tr, tare_active: true})
+        });
+        if (resp.ok) {
+            showToast('\u2713 Tare gespeichert: P=' + tp.toFixed(2) + '\u00b0 R=' + tr.toFixed(2) + '\u00b0');
+            setTimeout(loadSetup, 300);
+        } else {
+            showToast('Fehler beim Speichern');
+        }
+    } catch(e) {
+        showToast('Fehler: ' + (e.message || 'Verbindung'));
+    }
 }
 
 async function restartDevice() {

@@ -4,9 +4,9 @@
 #include <Arduino.h>
 
 // ============================================================
-// PIN DEFINITIONS - ESP32 WROOM-32 + BNO085 I2C
-#define PIN_I2C_SDA   21
-#define PIN_I2C_SCL   22
+// PIN DEFINITIONS - ESP32 S3 + BNO085 I2C
+#define PIN_I2C_SDA   1
+#define PIN_I2C_SCL   2
 #define BNO08X_I2C_ADDR 0x4A  // Default I2C address
 // ============================================================
 
@@ -24,9 +24,9 @@
 #define DEFAULT_MQTT_PASS     ""
 #define DEFAULT_MQTT_PREFIX   "wowa/level"
 
-#define DEFAULT_TRACK_WIDTH   180.0f   // cm - Spurweite
+#define DEFAULT_TRACK_WIDTH   225.0f   // cm - Spurweite
 #define DEFAULT_WHEELBASE     500.0f   // cm - Radstand (Wohnmobil)
-#define DEFAULT_AXLE_JOCKEY   450.0f   // cm - Achse zu Stuetzrad (Wohnwagen)
+#define DEFAULT_AXLE_JOCKEY   390.0f   // cm - Achse zu Stuetzrad (Wohnwagen)
 
 #define DEFAULT_TOLERANCE     0.5f     // degrees
 
