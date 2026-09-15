@@ -84,6 +84,8 @@ Im Ordner [`3D-Print/`](./3D-Print) findest du druckfertige STL-Dateien sowie Vo
 
 > Eine passende Dashboard-Karte befindet sich im Ordner [`WoWa-Level-Card/`](./WoWa-Level-Card).
 
+![WoWa Level Card](WoWa-Level-Card/wowalevelcard.png)
+
 ## MQTT Topics (Prefix: `wowa/level`)
 
 | Topic | Typ | Beschreibung |

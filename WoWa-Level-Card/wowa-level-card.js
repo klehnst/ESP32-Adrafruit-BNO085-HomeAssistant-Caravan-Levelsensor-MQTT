@@ -15,6 +15,10 @@ window.customCards.push({
   preview: false,
 });
 
+
+![WoWa Level Card](WoWa-Level-Card/wowalevelcard.png)
+
+
 /* ── Defaults ──────────────────────────────────────────────── */
 const WLC_DEFAULTS = {
   name: "Wohnwagen Ausrichtung",
