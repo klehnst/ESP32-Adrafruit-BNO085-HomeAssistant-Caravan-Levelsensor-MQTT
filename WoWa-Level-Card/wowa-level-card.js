@@ -14,11 +14,6 @@ window.customCards.push({
     "Neigungsanzeige mit Nivellier-Anweisungen und Boost-Modus für Wohnwagen",
   preview: false,
 });
-
-
-![WoWa Level Card](WoWa-Level-Card/wowalevelcard.png)
-
-
 /* ── Defaults ──────────────────────────────────────────────── */
 const WLC_DEFAULTS = {
   name: "Wohnwagen Ausrichtung",

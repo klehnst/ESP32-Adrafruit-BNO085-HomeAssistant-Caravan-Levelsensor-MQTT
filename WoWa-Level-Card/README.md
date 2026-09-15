@@ -20,6 +20,8 @@ Eine maßgeschneiderte Lovelace-Karte für **Home Assistant** zur präzisen Ausr
   * Dauerhafte Textanzeige aller Achsen oder dynamische Aktionsanweisung.
 * **Visueller Editor:** Vollständig integrierter GUI-Editor zur bequemen Konfiguration im Dashboard.
 
+![WoWa Level Card](WoWa-Level-Card/wowalevelcard.png)
+
 ---
 
 ## 📦 Installation
