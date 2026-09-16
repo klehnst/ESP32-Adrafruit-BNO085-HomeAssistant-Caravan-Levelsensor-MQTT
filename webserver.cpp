@@ -149,8 +149,11 @@ static void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
         // Handle incoming WebSocket messages
         AwsFrameInfo* info = (AwsFrameInfo*)arg;
         if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-            data[len] = 0;
-            String msg = String((char*)data);
+            // Der AsyncWebServer besitzt den Eingabepuffer. Ein Terminator bei
+            // data[len] könnte ein Byte hinter dem Puffer überschreiben.
+            String msg;
+            msg.reserve(len);
+            for (size_t i = 0; i < len; ++i) msg += static_cast<char>(data[i]);
             
             if (msg == "TARE_SET") {
                 sensorSetTare();
@@ -206,13 +209,24 @@ static void handleApiGetConfig(AsyncWebServerRequest* request) {
 }
 
 static void handleApiSaveConfig(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-    static String body;
-    if (index == 0) body = "";
-    body += String((char*)data, len);
+    constexpr size_t MAX_CONFIG_BODY = 2048;
+    if (total > MAX_CONFIG_BODY) {
+        if (index == 0) request->send(413, "application/json", "{\"error\":\"Request too large\"}");
+        return;
+    }
+    if (index == 0) request->_tempObject = new String();
+    String* body = static_cast<String*>(request->_tempObject);
+    if (!body) {
+        request->send(500, "application/json", "{\"error\":\"Out of memory\"}");
+        return;
+    }
+    body->concat((const char*)data, len);
     
     if (index + len == total) {
         JsonDocument doc;
-        DeserializationError err = deserializeJson(doc, body);
+        DeserializationError err = deserializeJson(doc, *body);
+        delete body;
+        request->_tempObject = nullptr;
         
         if (err) {
             request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
@@ -224,14 +238,30 @@ static void handleApiSaveConfig(AsyncWebServerRequest* request, uint8_t* data, s
         if (doc.containsKey("wifi_pass")) strlcpy(config.wifi_pass, doc["wifi_pass"] | "", sizeof(config.wifi_pass));
         if (doc.containsKey("ap_ssid")) strlcpy(config.ap_ssid, doc["ap_ssid"] | DEFAULT_AP_SSID, sizeof(config.ap_ssid));
         if (doc.containsKey("ap_pass")) strlcpy(config.ap_pass, doc["ap_pass"] | DEFAULT_AP_PASSWORD, sizeof(config.ap_pass));
-        if (doc.containsKey("mqtt_server")) strlcpy(config.mqtt_server, doc["mqtt_server"] | "", sizeof(config.mqtt_server));
-        if (doc.containsKey("mqtt_port")) config.mqtt_port = doc["mqtt_port"] | DEFAULT_MQTT_PORT;
+        bool mqttChanged = false;
+        if (doc.containsKey("mqtt_server")) {
+            char server[sizeof(config.mqtt_server)];
+            strlcpy(server, doc["mqtt_server"] | "", sizeof(server));
+            mqttChanged = strcmp(server, config.mqtt_server) != 0;
+            strlcpy(config.mqtt_server, server, sizeof(config.mqtt_server));
+        }
+        if (doc.containsKey("mqtt_port")) {
+            uint16_t port = doc["mqtt_port"] | DEFAULT_MQTT_PORT;
+            mqttChanged = mqttChanged || port != config.mqtt_port;
+            config.mqtt_port = port;
+        }
         if (doc.containsKey("mqtt_user")) strlcpy(config.mqtt_user, doc["mqtt_user"] | "", sizeof(config.mqtt_user));
         if (doc.containsKey("mqtt_pass")) strlcpy(config.mqtt_pass, doc["mqtt_pass"] | "", sizeof(config.mqtt_pass));
         if (doc.containsKey("mqtt_prefix")) strlcpy(config.mqtt_prefix, doc["mqtt_prefix"] | DEFAULT_MQTT_PREFIX, sizeof(config.mqtt_prefix));
-        if (doc.containsKey("mount")) config.mount = (MountOrientation)(doc["mount"].as<int>());
+        if (doc.containsKey("mount")) {
+            int mount = doc["mount"].as<int>();
+            if (mount >= MOUNT_USB_FRONT && mount <= MOUNT_WALL_RIGHT) config.mount = (MountOrientation)mount;
+        }
         if (doc.containsKey("track_width")) config.track_width = doc["track_width"];
-        if(doc.containsKey("vehicle_type")) config.vehicle_type = (VehicleType)(int)doc["vehicle_type"];
+        if(doc.containsKey("vehicle_type")) {
+            int vehicleType = doc["vehicle_type"].as<int>();
+            if (vehicleType == VEHICLE_CARAVAN || vehicleType == VEHICLE_MOTORHOME) config.vehicle_type = (VehicleType)vehicleType;
+        }
         if(doc.containsKey("axle_to_jockey")) config.axle_to_jockey = doc["axle_to_jockey"] | DEFAULT_AXLE_JOCKEY;
         if (doc.containsKey("wheelbase")) config.wheelbase = doc["wheelbase"] | DEFAULT_WHEELBASE;
         if (doc.containsKey("tolerance")) config.tolerance = doc["tolerance"] | DEFAULT_TOLERANCE;
@@ -244,18 +274,34 @@ static void handleApiSaveConfig(AsyncWebServerRequest* request, uint8_t* data, s
         if (doc.containsKey("mqtt_fast")) config.mqtt_fast = doc["mqtt_fast"];
         
         saveConfig();
+        if (mqttChanged) mqttReconfigure();
         request->send(200, "application/json", "{\"status\":\"ok\"}");
     }
 }
 
 static void handleApiTare(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
-    static String body;
-    if (index == 0) body = "";
-    body += String((char*)data, len);
+    constexpr size_t MAX_TARE_BODY = 256;
+    if (total > MAX_TARE_BODY) {
+        if (index == 0) request->send(413, "application/json", "{\"error\":\"Request too large\"}");
+        return;
+    }
+    if (index == 0) request->_tempObject = new String();
+    String* body = static_cast<String*>(request->_tempObject);
+    if (!body) {
+        request->send(500, "application/json", "{\"error\":\"Out of memory\"}");
+        return;
+    }
+    body->concat((const char*)data, len);
     
     if (index + len == total) {
         JsonDocument doc;
-        deserializeJson(doc, body);
+        DeserializationError err = deserializeJson(doc, *body);
+        delete body;
+        request->_tempObject = nullptr;
+        if (err) {
+            request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+            return;
+        }
         
         String action = doc["action"] | "SET";
         if (action == "SET") {
@@ -340,9 +386,16 @@ void loadConfig() {
     strlcpy(config.mqtt_user, doc["mqtt_user"] | "", sizeof(config.mqtt_user));
     strlcpy(config.mqtt_pass, doc["mqtt_pass"] | "", sizeof(config.mqtt_pass));
     strlcpy(config.mqtt_prefix, doc["mqtt_prefix"] | DEFAULT_MQTT_PREFIX, sizeof(config.mqtt_prefix));
-    config.mount = (MountOrientation)(doc["mount"].as<int>());
-    config.track_width = doc["track_width"];
-    if(doc.containsKey("vehicle_type")) config.vehicle_type = (VehicleType)(int)doc["vehicle_type"];
+    int mount = doc["mount"] | static_cast<int>(MOUNT_USB_FRONT);
+    config.mount = (mount >= MOUNT_USB_FRONT && mount <= MOUNT_WALL_RIGHT)
+        ? (MountOrientation)mount : MOUNT_USB_FRONT;
+    config.track_width = doc["track_width"] | DEFAULT_TRACK_WIDTH;
+    if(doc.containsKey("vehicle_type")) {
+        int vehicleType = doc["vehicle_type"].as<int>();
+        if (vehicleType == VEHICLE_CARAVAN || vehicleType == VEHICLE_MOTORHOME) {
+            config.vehicle_type = (VehicleType)vehicleType;
+        }
+    }
     if(doc.containsKey("axle_to_jockey")) config.axle_to_jockey = doc["axle_to_jockey"] | DEFAULT_AXLE_JOCKEY;
     config.wheelbase = doc["wheelbase"] | DEFAULT_WHEELBASE;
     config.tolerance = doc["tolerance"] | DEFAULT_TOLERANCE;
@@ -389,3 +442,4 @@ void saveConfig() {
     file.close();
     Serial.println("[Config] Saved to file");
 }
+
