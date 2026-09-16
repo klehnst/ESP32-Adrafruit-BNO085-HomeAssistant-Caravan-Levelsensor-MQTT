@@ -37,6 +37,16 @@ void mqttInit() {
     Serial.printf("[MQTT] Configured: %s:%d\n", config.mqtt_server, config.mqtt_port);
 }
 
+void mqttReconfigure() {
+    // Host und Port koennen aus der Web-UI geändert werden. PubSubClient
+    // übernimmt sie erst nach setServer(), daher die bestehende Session beenden.
+    mqtt.disconnect();
+    mqtt.setServer(config.mqtt_server, config.mqtt_port);
+    discoveryPublished = false;
+    lastReconnect = 0;
+    Serial.printf("[MQTT] Reconfigured: %s:%d\n", config.mqtt_server, config.mqtt_port);
+}
+
 void mqttLoop() {
     if (!isConnected()) return;
     if (strlen(config.mqtt_server) == 0) return;
@@ -689,3 +699,4 @@ static void publishSwitch(const char* name, const char* id, const char* icon,
     delay(10);
     yield();
 }
+
