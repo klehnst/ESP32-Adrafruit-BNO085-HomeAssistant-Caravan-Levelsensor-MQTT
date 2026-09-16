@@ -5,6 +5,9 @@
 
 static BNO08x imu;
 static unsigned long lastSensorRead = 0;
+static float filteredPitch = 0.0f;
+static float filteredRoll = 0.0f;
+static bool filterInitialized = false;
 
 // Totzone fuer Anzeige
 #define DEADBAND 0.1f
@@ -197,6 +200,24 @@ void sensorLoop() {
                 sensorData.roll  = orientedRoll;
             }
 
+            // Exponentielle Glaettung. Ohne diesen Schritt war die per UI/MQTT
+            // schaltbare Filter-Option lediglich ein gespeicherter Schalter.
+            if (config.filter_active) {
+                constexpr float alpha = 0.25f;
+                if (!filterInitialized) {
+                    filteredPitch = sensorData.pitch;
+                    filteredRoll = sensorData.roll;
+                    filterInitialized = true;
+                } else {
+                    filteredPitch += alpha * (sensorData.pitch - filteredPitch);
+                    filteredRoll += alpha * (sensorData.roll - filteredRoll);
+                }
+                sensorData.pitch = filteredPitch;
+                sensorData.roll = filteredRoll;
+            } else {
+                filterInitialized = false;
+            }
+
             // 5. Totzone & Runden auf 0.1° Präzision
             sensorData.pitch = (fabsf(sensorData.pitch) < DEADBAND) ? 0.0f : roundf(sensorData.pitch * 10.0f) / 10.0f;
             sensorData.roll  = (fabsf(sensorData.roll)  < DEADBAND) ? 0.0f : roundf(sensorData.roll  * 10.0f) / 10.0f;
@@ -267,3 +288,4 @@ String getCalStatusString() {
         default: return "Unbekannt";
     }
 }
+
