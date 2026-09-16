@@ -5,9 +5,11 @@
 #include "config.h"
 
 void mqttInit();
+void mqttReconfigure();
 void mqttLoop();
 bool mqttIsConnected();
 void mqttPublishDiscovery();
 void mqttPublishState();
 
 #endif // MQTT_HA_H
+
